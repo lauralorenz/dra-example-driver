@@ -1,9 +1,10 @@
----
-apiVersion: resource.k8s.io/v1beta1
+apiVersion: resource.k8s.io/v1
 kind: DeviceClass
 metadata:
-  name: gpu.example.com
+ name: block.topo.example.com
 spec:
-  selectors:
-  - cel: 
-      expression: "device.driver == 'gpu.example.com'"
+ selectors:
+ - cel:
+     expression: 'device.driver == "topo.example.com"'
+ - cel:
+     expression: 'device.attributes["topo.example.com"].topoLevel == "block"'
