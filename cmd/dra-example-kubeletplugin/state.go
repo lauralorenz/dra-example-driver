@@ -17,6 +17,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"sync"
@@ -63,8 +64,8 @@ type DeviceState struct {
 	checkpointManager checkpointmanager.CheckpointManager
 }
 
-func NewDeviceState(config *Config) (*DeviceState, error) {
-	allocatable, err := enumerateAllPossibleDevices(config.flags.numDevices)
+func NewDeviceState(ctx context.Context, config *Config) (*DeviceState, error) {
+	allocatable, err := getPseudoTopoDevices(ctx, config.coreclient)
 	if err != nil {
 		return nil, fmt.Errorf("error enumerating all possible devices: %v", err)
 	}

@@ -20,14 +20,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 
 	resourceapi "k8s.io/api/resource/v1"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	coreclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/dynamic-resource-allocation/kubeletplugin"
-	"k8s.io/dynamic-resource-allocation/resourceslice"
 	"k8s.io/klog/v2"
 
 	"sigs.k8s.io/dra-example-driver/pkg/consts"
@@ -47,7 +45,7 @@ func NewDriver(ctx context.Context, config *Config) (*driver, error) {
 		cancelCtx: config.cancelMainCtx,
 	}
 
-	state, err := NewDeviceState(config)
+	state, err := NewDeviceState(ctx, config)
 	if err != nil {
 		return nil, err
 	}
@@ -67,30 +65,32 @@ func NewDriver(ctx context.Context, config *Config) (*driver, error) {
 	}
 	driver.helper = helper
 
-	devices := make([]resourceapi.Device, 0, len(state.allocatable))
-	for device := range maps.Values(state.allocatable) {
-		devices = append(devices, device)
-	}
-	resources := resourceslice.DriverResources{
-		Pools: map[string]resourceslice.Pool{
-			config.flags.nodeName: {
-				Slices: []resourceslice.Slice{
-					{
-						Devices: devices,
-					},
-				},
-			},
-		},
-	}
+	// devices := make([]resourceapi.Device, 0, len(state.allocatable))
+	// for device := range maps.Values(state.allocatable) {
+	// 	devices = append(devices, device)
+	// }
+
+	// resources := resourceslice.DriverResources{
+	// 	Pools: map[string]resourceslice.Pool{
+	// 		config.flags.nodeName: {
+	// 			Slices: []resourceslice.Slice{
+	// 				{
+	// 					Devices: devices,
+	// 				},
+	// 			},
+	// 		},
+	// 	},
+	// }
 
 	driver.healthcheck, err = startHealthcheck(ctx, config)
 	if err != nil {
 		return nil, fmt.Errorf("start healthcheck: %w", err)
 	}
 
-	if err := helper.PublishResources(ctx, resources); err != nil {
-		return nil, err
-	}
+	//Do not publish resources as the controller will do that
+	// if err := helper.PublishResources(ctx, resources); err != nil {
+	// 	return nil, err
+	// }
 
 	return driver, nil
 }
@@ -107,6 +107,9 @@ func (d *driver) PrepareResourceClaims(ctx context.Context, claims []*resourceap
 	klog.Infof("PrepareResourceClaims is called: number of claims: %d", len(claims))
 	result := make(map[types.UID]kubeletplugin.PrepareResult)
 
+	//In reality these Topo claims are only used for scheduler filtering, not for actually preparing anything speciifc
+	//Internally this will be a no-op for actually doing any preparation
+	//but we must report that we have processed the claim with a PrepareResult
 	for _, claim := range claims {
 		result[claim.UID] = d.prepareResourceClaim(ctx, claim)
 	}
@@ -139,6 +142,9 @@ func (d *driver) UnprepareResourceClaims(ctx context.Context, claims []kubeletpl
 	klog.Infof("UnprepareResourceClaims is called: number of claims: %d", len(claims))
 	result := make(map[types.UID]error)
 
+	//In reality these Topo claims are only used for scheduler filtering, not for actually preparing anything speciifc
+	//Internally this will be a no-op for actually doing any un-preparation
+	//but we must report that we have processed the claim
 	for _, claim := range claims {
 		result[claim.UID] = d.unprepareResourceClaim(ctx, claim)
 	}

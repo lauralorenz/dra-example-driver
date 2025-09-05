@@ -17,16 +17,36 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"os"
 
+	"github.com/google/uuid"
 	resourceapi "k8s.io/api/resource/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	coreclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
-
-	"github.com/google/uuid"
 )
+
+// Get the pseudo-devices that represent the topology from the API to store in driver memory
+func getPseudoTopoDevices(ctx context.Context, client coreclientset.Interface) (AllocatableDevices, error) {
+	resourceslices := &resourceapi.ResourceSliceList{}
+	resourceslices, err := client.ResourceV1().ResourceSlices().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	all := make(AllocatableDevices)
+	for _, resourceslice := range resourceslices.Items {
+		for _, device := range resourceslice.Spec.Devices {
+			all[device.Name] = device
+		}
+	}
+
+	return all, nil
+}
 
 func enumerateAllPossibleDevices(numGPUs int) (AllocatableDevices, error) {
 	seed := os.Getenv("NODE_NAME")
